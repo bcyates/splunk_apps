@@ -1,0 +1,72 @@
+#The purpose of this script is to test connectivity between core Splunk servers on common Splunk network ports (8000, 9997, 8089, 9887). 
+
+#The script uses netcat to test port availability based on the text file where you will be required to list the IPs or hostnames of your Splunk servers that you need to verify connection for.
+
+#Essentially, the script runs the netcat command from a source host, then checks the splunk_server_list for machines to check connectivity to over common Splunk ports, then outputs the test results to the same directory the scripts is ran from. I typically will run the script out of “/tmp” with the server_list in the same directory.
+
+#NOTE: The replication port test should be expected to fail if ran from a non-clustered indexer, or if the replication port was changed to something other than 9887. In that case, make sure to update the script to account for the modified port.
+
+#PREREQUISITES:
+
+#Populate a text file called “splunk_server_list.txt”
+
+#Ensure script is ran as the root user or with sudo privileges, as it attempts to install netcat if not already there
+
+#If netcat is already installed and available on the source machine, the script can be ran as a non-privileged user
+
+#Splunk must be installed, configured, and running to properly test connectivity
+
+!/bin/bash
+
+#install nmap for netcat
+
+  YUM_CMD='yum install'
+  APT_GET_CMD=apt-get
+  OTHER_CMD='dnf install'
+  PACKAGE_NAME=nmap
+
+ if [[ ! -z $YUM_CMD ]]; then
+    yum install $PACKAGE_NAME
+ elif [[ ! -z $APT_GET_CMD ]]; then
+    apt-get $PACKAGE_NAME
+ elif [[ ! -z $OTHER_CMD ]]; then
+    $OTHER_CMD $PACKAGE_NAME
+ else
+    echo "error can't install package $PACKAGE_NAME"
+    exit 1;
+ fi
+
+#check common Splunk ports
+
+management_port=8089
+while read ip; do
+    if ncat -w2 -z "$ip" $management_port; then
+        echo "$ip" $management_port 'Connection Succeeded'
+    else
+        echo "$ip" $management_port 'Connection Failed'
+            fi >> splunk_connection_results.txt
+done < splunk_server_list.txt
+web_port=8000
+while read ip; do
+if ncat -w2 -z "$ip" $web_port; then
+        echo "$ip" $web_port 'Connection Succeeded'
+    else
+        echo "$ip" $web_port 'Connection Failed'
+    fi >> splunk_connection_results.txt
+done < splunk_server_list.txt
+forwarding_port=9997
+while read ip; do
+    if ncat -w2 -z "$ip" $forwarding_port; then
+        echo "$ip" $forwarding_port 'Connection Succeeded'
+    else
+        echo "$ip" $forwarding_port 'Connection Failed'
+            fi >> splunk_connection_results.txt
+done < splunk_server_list.txt
+replication_port=9887
+while read ip; do
+if ncat -w2 -z "$ip" $replication_port; then
+        echo "$ip" $replication_port 'Connection Succeeded'
+    else
+        echo "$ip" $replication_port 'Connection Failed'
+    fi >> splunk_connection_results.txt
+done < splunk_server_list.txt
